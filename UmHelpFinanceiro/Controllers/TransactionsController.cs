@@ -3,44 +3,93 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Domain.Exceptions.Base;
+using Domain.Models.Dtos.Transactions;
+using Domain.Models.Entities;
+using Infrastructure.Repositories.Transactions;
+using Infrastructure.Repositories.Users;
+using Microsoft.AspNetCore.Authorization;
+using UmHelpFinanceiro.Services.Transactions;
 
 
 namespace UmHelpFinanceiro.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]"), Authorize]
     [ApiController]
     public class TransactionsController : ControllerBase
     {
-        // GET: api/<TransactionsController>
-        [HttpGet]
-        public IEnumerable<string> Get()
+        private readonly ITransactionRepository _transactionRepository;
+        private readonly IUserAccountRepository _userAccountRepository;
+        private readonly ITransactionService _transactionService;
+
+        public TransactionsController(ITransactionRepository transactionRepository, IUserAccountRepository userAccountRepository, ITransactionService transactionService)
         {
-            return new string[] { "value1", "value2" };
+            _transactionRepository = transactionRepository;
+            _userAccountRepository = userAccountRepository;
+            _transactionService = transactionService;
         }
 
-        // GET api/<TransactionsController>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
+        [HttpGet("users/{userId}")]
+        public ActionResult<IEnumerable<TransactionDto>> ListByDateRange(
+            [FromRoute]Guid userId, 
+            [FromQuery]DateTime? start,
+            [FromQuery]DateTime? end
+            )
         {
-            return "value";
+            if (start == null || end == null) return BadRequest();
+            return Ok(_transactionRepository.ListByUserAndDateRange(userId, (DateTime) start, (DateTime) end));
         }
 
-        // POST api/<TransactionsController>
         [HttpPost]
-        public void Post([FromBody] string value)
+        public async Task<ActionResult> Register([FromBody]RegisterTransactionRequest request)
         {
+            var userFrom = await _userAccountRepository.FindAsync(request.From);
+            var userTo = await _userAccountRepository.FindAsync(request.To);
+
+            if (userTo == null || userFrom == null) return NotFound();
+            if (request.Value <= 0 || userFrom.CurrentBalance < request.Value) return BadRequest();
+            
+            try
+            {
+                await _transactionService.RegisterAsync((Transaction) request);
+            }
+            catch (DomainExceptionBase err)
+            {
+                return BadRequest(err.Message);
+            }
+            catch (ArgumentException err)
+            {
+                return BadRequest(err.Message);
+            }
+
+            return Ok();
         }
 
-        // PUT api/<TransactionsController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<TransactionsController>/5
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        public async Task<ActionResult> Revert(Guid id)
         {
+            var transaction = await _transactionRepository.FindAsync(id);
+            if (transaction == null) return NotFound();
+
+            var userFrom = await _userAccountRepository.FindAsync(transaction.From);
+            var userTo = await _userAccountRepository.FindAsync(transaction.To);
+
+            if (userTo.CurrentBalance < transaction.Value) return BadRequest();
+
+            try
+            {
+                await _transactionService.RevertAsync(id);
+            }
+            catch (DomainExceptionBase err)
+            {
+                return BadRequest(err.Message);
+            }
+            catch (ArgumentException err)
+            {
+                return BadRequest(err.Message);
+            }
+
+            return Ok();
         }
     }
 }

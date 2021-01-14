@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Domain.Models.Entities
 {
@@ -9,7 +7,7 @@ namespace Domain.Models.Entities
         public Guid Id { get; private set; }
         public DateTime CreationDate { get; private set; }
 
-        public EntityBase()
+        protected EntityBase()
         {
             Id = Guid.NewGuid();
             CreationDate = DateTime.UtcNow;

@@ -1,4 +1,5 @@
 ﻿using System;
+using Domain.Exceptions.Users;
 
 namespace Domain.Models.ValueObjects
 {
@@ -9,7 +10,7 @@ namespace Domain.Models.ValueObjects
         public Cpf(string number)
         {
             Number = number;
-            if(IsCpf(Number)) throw new ArgumentException();
+            if(!IsCpf(Number)) throw new InvalidCpfException();
         }
 
         private static bool IsCpf(string cpf)
@@ -52,6 +53,36 @@ namespace Domain.Models.ValueObjects
             digito = digito + resto.ToString();
 
             return cpf.EndsWith(digito);
+        }
+
+        public override string ToString()
+        {
+            return Number;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return this.Number == (obj as Cpf)?.Number;
+        }
+
+        protected bool Equals(Cpf other)
+        {
+            return this == other;
+        }
+
+        public override int GetHashCode()
+        {
+            return (Number != null ? Number.GetHashCode() : 0);
+        }
+
+        public static bool operator == (Cpf first, Cpf second)
+        {
+            return first?.Number == second?.Number;
+        }
+
+        public static bool operator !=(Cpf first, Cpf second)
+        {
+            return !(first == second);
         }
     }
 }

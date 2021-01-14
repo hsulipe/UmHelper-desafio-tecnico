@@ -1,47 +1,91 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System;
+using System.Text;
+using Domain.Models.Dtos.Users;
+using Infrastructure.Repositories.Users;
+using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using Domain.Exceptions.Base;
+using Domain.Helpers;
+using Domain.Models.Entities;
+using Domain.Models.ValueObjects;
+using Microsoft.AspNetCore.Authorization;
+using UmHelpFinanceiro.Services.IdentityTokens;
+using UmHelpFinanceiro.Services.Users;
 
 namespace UmHelpFinanceiro.Controllers
 {
     [Route("api/[controller]")]
-    [ApiController]
+    [ApiController, Authorize]
     public class UsersController : ControllerBase
     {
-        // GET: api/<UsersController>
-        [HttpGet]
-        public IEnumerable<string> Get()
+        private readonly IIdentityTokenService _tokenService;
+        private readonly IUserAccountRepository _userAccountRepository;
+        private readonly IUserService _userService;
+
+        public UsersController(IIdentityTokenService tokenService, IUserAccountRepository userAccountRepository, IUserService userService)
         {
-            return new string[] { "value1", "value2" };
+            _tokenService = tokenService;
+            _userAccountRepository = userAccountRepository;
+            _userService = userService;
         }
 
-        // GET api/<UsersController>/5
+        [HttpPost, AllowAnonymous]
+        public async Task<ActionResult<UserAccountDto>> Register([FromBody] UserRegisterRequest model)
+        {
+            UserAccount user;
+            try
+            {
+                user = (UserAccount) model;
+            }
+            catch (ArgumentException err)
+            {
+                return BadRequest(err.Message);
+            }
+            catch (DomainExceptionBase err)
+            {
+                return BadRequest(err.Message);
+            }
+
+            await _userService.RegisterAsync(user);
+
+            return Ok((UserAccountDto) user);
+        }
+
+        [HttpPost("login"), AllowAnonymous]
+        public async Task<ActionResult<UserAuthenticateResponseDto>> Authenticate([FromBody] UserAuthenticateRequestDto model)
+        {
+            var user = await _userAccountRepository.FindByAsync(x => x.Cpf.Number == new Cpf(model.Cpf).Number);
+
+            if (user == null)
+                return NotFound();
+            else
+            {
+                if (!PasswordSaltedHelper.CompareHash(Encoding.ASCII.GetBytes(model.Password), user.Password.Hash, user.Password.Salt))
+                {
+                    return NotFound();
+                }
+            }
+            
+            var token = _tokenService.GenerateToken(user);
+            return Ok(new UserAuthenticateResponseDto((UserAccountDto)user, token));
+        }
+
         [HttpGet("{id}")]
-        public string Get(int id)
+        public async Task<ActionResult<UserAccountDto>> Get([FromRoute] Guid id)
         {
-            return "value";
+            var result = await _userAccountRepository.FindAsync(id);
+            if (result == null)
+                return NotFound();
+            return Ok((UserAccountDto) result);
         }
 
-        // POST api/<UsersController>
-        [HttpPost]
-        public void Post([FromBody] string value)
+        [HttpGet("{id}/balance")]
+        public async Task<ActionResult<double>> GetBalance([FromRoute]Guid id)
         {
-        }
-
-        // PUT api/<UsersController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<UsersController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
+            var result = (await _userAccountRepository.FindAsync(id))?.CurrentBalance;
+            if (result == null)
+                return NotFound();
+            return Ok(result);
         }
     }
 }

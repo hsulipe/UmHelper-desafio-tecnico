@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Infrastructure.Databases.SQLServer.Mappings
+namespace Infrastructure.Databases.Postgres.Mappings
 {
     internal class UserAccountMap : IEntityTypeConfiguration<UserAccount>
     {
@@ -15,14 +15,14 @@ namespace Infrastructure.Databases.SQLServer.Mappings
             builder.Property(x => x.Id)
                 .HasMaxLength(64);
 
-            builder.Property(x => x.Balance)
+            builder.Property(x => x.InitialBalance)
                 .IsRequired();
-
-            builder.HasIndex(x => x.Cpf);
+            builder.Property(x => x.CurrentBalance)
+                .IsRequired();
 
             builder.OwnsOne(x => x.Cpf)
                 .Property(x => x.Number)
-                .HasColumnName("Cpf")
+                .HasColumnName("CpfNumber")
                 .HasMaxLength(11)
                 .IsRequired();
 

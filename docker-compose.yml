@@ -1,0 +1,35 @@
+version: '3.6'
+
+services:
+  # Launch the Redis used for syncing messages between copies of the client app
+  postgresDb:
+    container_name: umhelpfinanceiro.postgres
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: "nsXQsPXTV3"
+    ports:
+    - 5432:5432
+    networks: 
+    - default
+
+  wepapp:
+    container_name: umhelpfinanceiro.application.webapi
+    image: umhelpfinanceiro.application.webapi
+    depends_on:
+    - postgresDb
+    restart: on-failure
+    links:
+    - postgresDb
+    build: ./
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      POSTGRES_DATA_SOURCE: postgresDb
+      POSTGRESS_PASSWORD: "nsXQsPXTV3"
+    ports:
+    - 8080:80
+    networks: 
+    - default
+
+networks:
+  default:
+      driver: bridge

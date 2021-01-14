@@ -10,7 +10,7 @@ namespace Domain.Models.Entities
 
         // Navigation Properties
         public virtual UserAccount UserAccountFrom { get; private set; }
-        public virtual UserAccount UserAccountTo { get; set; }
+        public virtual UserAccount UserAccountTo { get; private set; }
 
         protected Transaction() : base() { }
 

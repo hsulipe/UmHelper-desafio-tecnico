@@ -1,45 +1,44 @@
-﻿using System.Security.Cryptography;
+﻿using System;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Domain.Models.ValueObjects
 {
     public class Password
     {
-        private const int SALT_SIZE = 8;
 
         public byte[] Hash { get; }
         public byte[] Salt { get; }
 
-        public Password(byte[] password)
+        public Password(byte[] salt, byte[] hash)
         {
-            Salt = GenerateSalt();
-            Hash = GenerateSaltedHash(password, Salt);
+            Salt = salt;
+            Hash = hash;
         }
 
-        private static byte[] GenerateSalt()
+        public override bool Equals(object? obj)
         {
-            RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
-            byte[] buff = new byte[SALT_SIZE];
-            rng.GetBytes(buff);
-
-            return buff;
+            return this == obj as Password;
         }
 
-        static byte[] GenerateSaltedHash(byte[] plainText, byte[] salt)
+        protected bool Equals(Password other)
         {
-            HashAlgorithm algorithm = new SHA256Managed();
+            return Equals(Hash, other.Hash);
+        }
 
-            byte[] plainTextWithSaltBytes = new byte[plainText.Length + salt.Length];
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Hash);
+        }
 
-            for (int i = 0; i < plainText.Length; i++)
-            {
-                plainTextWithSaltBytes[i] = plainText[i];
-            }
-            for (int i = 0; i < salt.Length; i++)
-            {
-                plainTextWithSaltBytes[plainText.Length + i] = salt[i];
-            }
+        public static bool operator == (Password first, Password second)
+        {
+            return first?.GetHashCode() == second?.GetHashCode();
+        }
 
-            return algorithm.ComputeHash(plainTextWithSaltBytes);
+        public static bool operator !=(Password first, Password second)
+        {
+            return !(first == second);
         }
     }
 }

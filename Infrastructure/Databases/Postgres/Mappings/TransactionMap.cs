@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Infrastructure.Databases.SQLServer.Mappings
+namespace Infrastructure.Databases.Postgres.Mappings
 {
     internal class TransactionMap : IEntityTypeConfiguration<Transaction>
     {
@@ -37,7 +37,8 @@ namespace Infrastructure.Databases.SQLServer.Mappings
 
             builder.HasOne<UserAccount>(x => x.UserAccountTo)
                 .WithMany(u => u.Received)
-                .HasForeignKey(x => x.To);
+                .HasForeignKey(x => x.To)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }
